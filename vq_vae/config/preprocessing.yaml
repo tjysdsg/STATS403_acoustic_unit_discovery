@@ -1,0 +1,5 @@
+defaults:
+  - preprocessing: default
+
+data_dir: datasets
+output_dir: datasets/feats

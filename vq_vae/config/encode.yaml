@@ -1,0 +1,8 @@
+defaults:
+  - preprocessing: default
+  - model: default
+  - training: default
+
+data_split: train
+out_dir: exp/zerospeech_vae/encode
+checkpoint: ???

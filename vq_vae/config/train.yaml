@@ -1,0 +1,9 @@
+defaults:
+  - preprocessing: default
+  - model: default
+  - training: default
+
+resume: False
+tensorboard: False
+checkpoint_dir: exp/zerospeech_vae
+data_split: train

@@ -1,0 +1,10 @@
+numpy
+scipy
+librosa
+numba
+tqdm
+hydra-core
+pyloudnorm
+tensorboard
+textgrid
+speechbrain

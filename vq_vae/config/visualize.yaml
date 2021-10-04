@@ -1,0 +1,2 @@
+in_dir: exp/zerospeech_vae/encode
+out_dir: exp/zerospeech_vae/viz
