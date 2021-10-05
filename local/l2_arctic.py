@@ -3,12 +3,9 @@ Based on https://github.com/cageyoko/CTC-Attention-Mispronunciation/blob/master/
 """
 import glob
 import os
-import string
 import textgrid
-import re
 import argparse
-from typing import List
-from wer import get_wer_details, predict_scores
+from typing import List, Tuple
 
 EMPTY_PHONES = [
     '<blank>',
@@ -69,156 +66,134 @@ def phone_to_score_phone(phone: str) -> str:
     return f'{phone}2'
 
 
-def get_scores(ppl: List[str], cpl: List[str]) -> List[int]:
-    scores = predict_scores(['0'], get_wer_details({'0': ppl}, {'0': cpl}))
-    return scores['0']
-
-
 def get_utt_id(spk: str, filename: str):
     assert '.' not in filename  # filename must not contain a file extension
     return f'{spk}-{filename}'
+
+
+def tokenize_utt_id(utt_id: str):
+    """
+    :return (spk_id, filename)
+    """
+    return utt_id.split('-')
 
 
 def tokenize_path(path: str):
     path = path.replace('\\', '/')
     tokens = path.split("/")
     spk_id = tokens[-3]
-    utt_id = get_utt_id(spk_id, tokens[-1].split('.')[0])
+    filename = tokens[-1].split('.')[0]
+    return spk_id, filename
 
-    return utt_id, spk_id
+
+def build_data_path(prefix: str, spk_id: str, filename: str, annotation_type: str):
+    """
+    annotation_type can be one of ['textgrid', 'annotation', 'transcript', 'wav'],
+    and the file extension is set accordingly
+    """
+    ext = 'TextGrid'
+    if annotation_type == 'transcript':
+        ext = 'txt'
+    elif annotation_type == 'wav':
+        ext = 'wav'
+
+    return os.path.join(prefix, spk_id, annotation_type, f'{filename}.{ext}')
 
 
-def clean_annotated_data(wav_lst: list, output_dir: str):
-    wrd_text = open(os.path.join(output_dir, "words"), 'a')
-    wavscp = open(os.path.join(output_dir, "wav.scp"), 'a')
-    utt2scores = open(os.path.join(output_dir, "utt2scores"), 'a')
-    ppl = open(os.path.join(output_dir, "text"), 'a')  # perceived phones
-    cpl = open(os.path.join(output_dir, "cpl.txt"), 'a')  # correct phones
-    utt2spk = open(os.path.join(output_dir, "utt2spk"), 'a')
+def clean_textgrids(
+        data_dir: str, spk_and_filenames: List[Tuple[str, str]], output_dir: str, exclude_utts=None,
+        clean_ppl=True
+):
+    if exclude_utts is None:
+        exclude_utts = set()
+
+    wrd_text = open(os.path.join(output_dir, "words"), 'w')
+    wavscp = open(os.path.join(output_dir, "wav.scp"), 'w')
+    cpl = open(os.path.join(output_dir, "cpl.txt"), 'w')  # correct phones
+    utt2spk = open(os.path.join(output_dir, "utt2spk"), 'w')
+    if clean_ppl:
+        ppl = open(os.path.join(output_dir, "text"), 'w')  # perceived phones
 
     all_utts = []
-    for phn_path in wav_lst:
+    for spk_filename in spk_and_filenames:
+        spk_id, filename = spk_filename
+        utt_id = get_utt_id(spk_id, filename)
+
         # PPL path
-        utt_id, spk_id = tokenize_path(phn_path)
         all_utts.append(utt_id)
-        if utt_id in ERROR_UTTS:
+        if utt_id in exclude_utts or utt_id in ERROR_UTTS:
             continue
 
+        if clean_ppl:
+            phn_path = build_data_path(data_dir, spk_id, filename, 'annotation')
+        else:
+            phn_path = build_data_path(data_dir, spk_id, filename, 'textgrid')
         # wav path
-        tmp = re.sub("annotation", "wav", phn_path)
-        wav_path = re.sub("TextGrid", "wav", tmp)
-
+        wav_path = build_data_path(data_dir, spk_id, filename, 'wav')
         # CPL path
-        tmp = re.sub("annotation", "transcript", phn_path)
-        text_path = re.sub("TextGrid", "txt", tmp)
+        text_path = build_data_path(data_dir, spk_id, filename, 'transcript')
 
         ppl_phones = []
         cpl_phones = []
         tg = textgrid.TextGrid.fromFile(phn_path)
-        for i in tg[1]:
+        for i in tg[1]:  # type: textgrid.Interval
             if i.mark == '':
                 continue
             else:
-                cpl_ppl_type = i.mark.split(",")  # [CPL] or [CPL, PPL, error_type]
-                if len(cpl_ppl_type) == 1:  # no pronunciation error
-                    ppl_phn = cpl_ppl_type[0]
-                else:
-                    ppl_phn = cpl_ppl_type[1]
+                if clean_ppl:
+                    cpl_ppl_type = i.mark.split(",")  # [CPL] or [CPL, PPL, error_type]
+                    if len(cpl_ppl_type) == 1:  # no pronunciation error
+                        ppl_phn = cpl_ppl_type[0]
+                    else:
+                        ppl_phn = cpl_ppl_type[1]
 
-                cpl_phn = cpl_ppl_type[0]
+                    cpl_phn = cpl_ppl_type[0]
+                else:
+                    cpl_phn = i.mark
 
                 # remove stress marker
-                cpl_phn = cpl_phn.rstrip(string.digits)
-                ppl_phn = ppl_phn.rstrip(string.digits)
+                cpl_phn = ''.join(c for c in cpl_phn if not c.isdigit())
+                if clean_ppl:
+                    ppl_phn = ''.join(c for c in ppl_phn if not c.isdigit())
 
                 # clean phone
-                ppl_phones.append(clean_phone(ppl_phn))
                 cpl_phones.append(clean_phone(cpl_phn))
+                if clean_ppl:
+                    ppl_phones.append(clean_phone(ppl_phn))
 
         # remove empty phones from CPL
         cpl_phones = [p for p in cpl_phones if p not in EMPTY_PHONES]
 
-        # get scores
-        scores = get_scores(ppl_phones, cpl_phones)  # NOTE: insertions in PPL are ignored
-
-        # remove repeated SIL and convert to score-phones for PPL
-        ppl_phones = del_repeat_sil(ppl_phones)
-        ppl_phones = [phone_to_score_phone(p) for p in ppl_phones]
+        # postprocessing for data with PPLs
+        if clean_ppl:
+            # remove repeated SIL and convert to score-phones for PPL
+            ppl_phones = del_repeat_sil(ppl_phones)
+            ppl_phones = [phone_to_score_phone(p) for p in ppl_phones]
 
         f = open(text_path, 'r')
         for line in f:
             wrd_text.write(utt_id + " " + line.lower() + "\n")
 
-        assert len(scores) == len(cpl_phones)
-
         wavscp.write(f'{utt_id}\t{wav_path}\n')
-        utt2scores.write(f'{utt_id}\t{" ".join(map(str, scores))}\n')
-        ppl.write(f'{utt_id}\t{" ".join(ppl_phones)}\n')
         cpl.write(f'{utt_id}\t{" ".join(cpl_phones)}\n')
         utt2spk.write(f'{utt_id}\t{spk_id}\n')
+        if clean_ppl:
+            ppl.write(f'{utt_id}\t{" ".join(ppl_phones)}\n')
 
     wrd_text.close()
     wavscp.close()
-    utt2scores.close()
-    ppl.close()
     cpl.close()
     utt2spk.close()
+    if clean_ppl:
+        ppl.close()
 
     return all_utts
 
 
-def clean_unannotated_data(wav_lst: list, exclude_utts: set, output_dir: str):
-    wrd_text = open(os.path.join(output_dir, "words"), 'a')
-    wavscp = open(os.path.join(output_dir, "wav.scp"), 'a')
-    cpl = open(os.path.join(output_dir, "cpl.txt"), 'a')  # correct phones
-    utt2spk = open(os.path.join(output_dir, "utt2spk"), 'a')
-
-    for phn_path in wav_lst:
-        utt_id, spk_id = tokenize_path(phn_path)
-        if utt_id in exclude_utts or utt_id in ERROR_UTTS:
-            continue
-
-        # wav path
-        tmp = re.sub("textgrid", "wav", phn_path)
-        wav_path = re.sub("TextGrid", "wav", tmp)
-
-        # CPL path
-        tmp = re.sub("textgrid", "transcript", phn_path)
-        text_path = re.sub("TextGrid", "txt", tmp)
-
-        cpl_phones = []
-        tg = textgrid.TextGrid.fromFile(phn_path)
-        for i in tg[1]:
-            if i.mark == '':
-                continue
-            else:
-                cpl_phn = i.mark
-
-                # remove stress marker
-                cpl_phn = cpl_phn.rstrip(string.digits)
-
-                # clean phone
-                cpl_phones.append(clean_phone(cpl_phn))
-
-        # remove empty phones from CPL
-        cpl_phones = [p for p in cpl_phones if p not in EMPTY_PHONES]
-
-        f = open(text_path, 'r')
-        for line in f:
-            wrd_text.write(utt_id + " " + line.lower() + "\n")
-
-        wavscp.write(f'{utt_id}\t{wav_path}\n')
-        cpl.write(f'{utt_id}\t{" ".join(cpl_phones)}\n')
-        utt2spk.write(f'{utt_id}\t{spk_id}\n')
-
-    wrd_text.close()
-    wavscp.close()
-    cpl.close()
-    utt2spk.close()
-
-
 def main():
     args = get_args()
+    data_dir = args.l2_path
+
     speakers = [
         "EBVS", "ERMS", "HQTV", "PNV", "ASI", "RRBI", "BWC", "LXC", "HJK", "HKK", "ABA", "SKA", "MBMPS", "THV",
         "SVBI", "NCC", "YDCK", "YBAA", "NJS", "TLV", "TNI", "TXHC", "YKWK", "ZHAA"
@@ -226,23 +201,25 @@ def main():
     print(f"n_speakers = {len(speakers)}")
 
     # test data
-    wav_list = []
+    path_tokens = []
     for spk in speakers:
-        path = f"{args.l2_path}/{spk}/annotation/*.TextGrid"
-        wav_list += glob.glob(path)
+        path = f"{data_dir}/{spk}/annotation/*.TextGrid"
+        path_tokens += glob.glob(path)
+    path_tokens = [tokenize_path(e) for e in path_tokens]
     output_dir = os.path.join(args.output_dir, 'l2arctic_test')
     os.makedirs(output_dir, exist_ok=True)
 
-    test_utts = clean_annotated_data(wav_list, output_dir)
+    test_utts = clean_textgrids(data_dir, path_tokens, output_dir, clean_ppl=True)
 
-    # train data
-    wav_list = []
+    # train data don't have PPL annotations
+    path_tokens = []
     for spk in speakers:
-        path = f"{args.l2_path}/{spk}/textgrid/*.TextGrid"
-        wav_list += glob.glob(path)
+        path = f"{data_dir}/{spk}/textgrid/*.TextGrid"
+        path_tokens += glob.glob(path)
+    path_tokens = [tokenize_path(e) for e in path_tokens]
     output_dir = os.path.join(args.output_dir, 'l2arctic_train')
     os.makedirs(output_dir, exist_ok=True)
-    clean_unannotated_data(wav_list, set(test_utts), output_dir)
+    clean_textgrids(data_dir, path_tokens, output_dir, exclude_utts=set(test_utts), clean_ppl=False)
 
 
 if __name__ == '__main__':
