@@ -31,7 +31,7 @@ log "$0 $*"
 . path.sh
 . cmd.sh
 
-LIBRISPEECH=/home/storage07/zhangjunbo/data/librispeech
+LIBRISPEECH=/NASdata/AudioData/english/librispeech
 
 if [ $# -ne 0 ]; then
   log "Error: No positional arguments are required."

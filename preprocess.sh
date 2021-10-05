@@ -11,7 +11,7 @@ stage=0
 . cmd.sh
 
 if [ ${stage} -le 1 ]; then
-  python local/l2_arctic.py --l2-path=/home/storage15/tangjiyang/data/l2arctic --output-dir=datasets || exit 1
+  python local/l2_arctic.py --l2-path=/mingback/students/tjy/datasets/l2arctic --output-dir=datasets || exit 1
 fi
 
 if [ ${stage} -le 2 ]; then
