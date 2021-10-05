@@ -1,6 +1,6 @@
 #!/bin/bash
 # KALDI_ROOT=/home/storage04/zhuangweiji/git/kaldi-master-cuda10.1/  # compute-gop is not the newest
-KALDI_ROOT=/home/storage06/wangyongqing/work/kaldi-cuda11.1/kaldi/
+KALDI_ROOT=/home/kaldi
 if [ ! -d $KALDI_ROOT ]; then
   echo KALDI_ROOT has not been set.
   exit
