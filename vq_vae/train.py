@@ -36,8 +36,8 @@ def get_dataloader(cfg):
         root=root_path,
         split_name=cfg.data_split,
         hop_length=cfg.preprocessing.hop_length,
-        sr=cfg.preprocessing.sr,
         sample_frames=cfg.training.sample_frames,
+        l1_only=cfg.l1_only,
     )
 
     return DataLoader(

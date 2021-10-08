@@ -11,10 +11,10 @@ class SpeechDataset(KaldiFormatDataset):
             root: Path,
             split_name: str,
             hop_length: int,
-            sr: int,
             sample_frames: int,
             include_utts=False,
             subsample=True,
+            l1_only=False,
     ):
         super().__init__(root, split_name)
 
@@ -26,6 +26,7 @@ class SpeechDataset(KaldiFormatDataset):
 
         self.data = [
             (utt, Path(self.feats_dir / utt)) for utt, _ in self.utt2spk.items()
+            if not l1_only or 'arctic' not in utt
         ]
 
     def __len__(self):

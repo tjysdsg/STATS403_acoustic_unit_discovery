@@ -7,3 +7,4 @@ resume: False
 tensorboard: False
 checkpoint_dir: exp/zerospeech_vae
 data_split: train
+l1_only: True
