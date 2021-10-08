@@ -48,17 +48,6 @@ class Encoder(nn.Module):
         z, indices = self.codebook.encode(z.transpose(1, 2))
         return z, indices
 
-    @staticmethod
-    def output2input_idx(idx):
-        """
-        Convert input index to output index
-
-        The convolution approximately half the input sample rate
-
-        FIXME: make this accurate
-        """
-        return torch.floor(idx * 2)
-
 
 class Jitter(nn.Module):
     def __init__(self, p):
@@ -182,6 +171,21 @@ class Decoder(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
+
+
+class VqVae(nn.Module):
+    def __init__(self, encoder, decoder):
+        super().__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+
+    def encode(self, mels):
+        return self.encoder.encode(mels)
+
+    def forward(self, wav, mel, speakers):
+        z, vq_loss, perp = self.encoder(mel)
+        recon = self.decoder(wav, z, speakers)
+        return z, recon, vq_loss, perp
 
 
 def test_encoder():

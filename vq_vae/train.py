@@ -1,6 +1,5 @@
 import hydra
 from hydra import utils
-from itertools import chain
 from pathlib import Path
 from tqdm import tqdm
 import apex.amp as amp
@@ -8,14 +7,12 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-from model import Encoder, Decoder
+from model import Encoder, Decoder, VqVae
 
 
-def save_checkpoint(encoder, decoder, optimizer, amp, scheduler, step, checkpoint_dir):
+def save_checkpoint(model, optimizer, amp, scheduler, step, checkpoint_dir):
     checkpoint_state = {
-        "encoder": encoder.state_dict(),
-        "decoder": decoder.state_dict(),
+        "model": model.state_dict(),
         "optimizer": optimizer.state_dict(),
         "amp": amp.state_dict(),
         "scheduler": scheduler.state_dict(),
@@ -55,31 +52,24 @@ def train_model(cfg):
     checkpoint_dir = Path(utils.to_absolute_path(cfg.checkpoint_dir))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    if cfg.tensorboard:
-        tensorboard_path = Path(utils.to_absolute_path("tensorboard")) / cfg.checkpoint_dir
-        writer = SummaryWriter(tensorboard_path)
-    else:
-        writer = None
+    model = VqVae(Encoder(**cfg.model.encoder), Decoder(**cfg.model.decoder))
+    model.to(device)
 
-    encoder = Encoder(**cfg.model.encoder)
-    decoder = Decoder(**cfg.model.decoder)
-    encoder.to(device)
-    decoder.to(device)
+    optimizer = optim.Adam(model.parameters(), lr=cfg.training.optimizer.lr)
 
-    optimizer = optim.Adam(
-        chain(encoder.parameters(), decoder.parameters()),
-        lr=cfg.training.optimizer.lr)
-    [encoder, decoder], optimizer = amp.initialize([encoder, decoder], optimizer, opt_level="O1")
+    model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
+    # model = torch.nn.DataParallel(model)
+
     scheduler = optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=cfg.training.scheduler.milestones,
-        gamma=cfg.training.scheduler.gamma)
+        gamma=cfg.training.scheduler.gamma
+    )
 
     if cfg.resume:
         print("Resume checkpoint from: {}:".format(cfg.resume))
         resume_path = utils.to_absolute_path(cfg.resume)
         checkpoint = torch.load(resume_path, map_location=lambda storage, loc: storage)
-        encoder.load_state_dict(checkpoint["encoder"])
-        decoder.load_state_dict(checkpoint["decoder"])
+        model.load_state_dict(checkpoint["model"])
         optimizer.load_state_dict(checkpoint["optimizer"])
         amp.load_state_dict(checkpoint["amp"])
         scheduler.load_state_dict(checkpoint["scheduler"])
@@ -100,9 +90,8 @@ def train_model(cfg):
 
             optimizer.zero_grad()
 
-            z, vq_loss, perplexity = encoder(mels)
-            output = decoder(audio[:, :-1], z, speakers)
-            recon_loss = F.cross_entropy(output.transpose(1, 2), audio[:, 1:])
+            z, recon, vq_loss, perplexity = model(audio[:, :-1], mels, speakers)
+            recon_loss = F.cross_entropy(recon.transpose(1, 2), audio[:, 1:])
             loss = recon_loss + vq_loss
 
             with amp.scale_loss(loss, optimizer) as scaled_loss:
@@ -117,19 +106,13 @@ def train_model(cfg):
             average_perplexity += (perplexity.item() - average_perplexity) / i
 
             global_step += 1
-
             if global_step % cfg.training.checkpoint_interval == 0:
-                save_checkpoint(
-                    encoder, decoder, optimizer, amp,
-                    scheduler, global_step, checkpoint_dir)
+                save_checkpoint(model, optimizer, amp, scheduler, global_step, checkpoint_dir)
 
-        if writer:
-            writer.add_scalar("recon_loss/train", average_recon_loss, global_step)
-            writer.add_scalar("vq_loss/train", average_vq_loss, global_step)
-            writer.add_scalar("average_perplexity", average_perplexity, global_step)
-
-        print("epoch:{}, recon loss:{:.2E}, vq loss:{:.2E}, perplexity:{:.3f}"
-              .format(epoch, average_recon_loss, average_vq_loss, average_perplexity))
+        print(
+            f"epoch:{epoch}, recon loss:{average_recon_loss:.2E}, "
+            f"vq loss:{average_vq_loss:.2E}, perplexity:{average_perplexity:.3f}"
+        )
 
 
 if __name__ == "__main__":
