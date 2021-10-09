@@ -17,7 +17,7 @@
 
 ## ABX testing
 
-0. Prepare python environment as described [here](https://github.com/bootphon/zerospeech2020)
+0. Prepare python environment as described [here](https://github.com/tjysdsg/zerospeech2020)
 1. Run `preprocess_and_encode_zerospeech.sh`, results are saved in `zerospeech_data`
 2. Run
 
