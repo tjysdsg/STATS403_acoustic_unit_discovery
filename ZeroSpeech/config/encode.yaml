@@ -1,9 +1,7 @@
 defaults:
+  - dataset: 2019/english
   - preprocessing: default
   - model: default
-  - training: default
 
-in_dir: datasets
-data_split: train
-out_dir: exp/zerospeech_vae/encode
 checkpoint: exp/zerospeech_vae/model.pt
+out_dir: zerospeech2020_datasets/encode/2019/english/test

@@ -1,0 +1,16 @@
+abx distance:
+  # the ABX distance used for ranking the test embeddings,
+  # must be 'dtw_cosine', 'dtw_kl' or 'levenshtein'
+  dtw_cosine
+system description:
+  a brief description of your system, eventually pointing to a paper
+hyperparameters:
+  values of all the hyperparameters
+auxiliary1 description:
+  description of the auxiliary1 embeddings (if used)
+auxiliary2 description:
+  description of the auxiliary1 embeddings (if used)
+using parallel train:
+  false
+using external data:
+  false

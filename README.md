@@ -14,3 +14,14 @@
 3. Run `python vq_vae/encode.py ++checkpoint=<checkpoint_path>`, outputs are saved in `exp/zerospeech_vae`
     - (Optional) Run `python vq_vae/visualize_encodings.py` to plot VQ-VAE encoding outputs, saved
       in `exp/zerospeech_vae/encode`
+
+## ABX testing
+
+0. Prepare python environment as described [here](https://github.com/bootphon/zerospeech2020)
+1. Run `preprocess_and_encode_zerospeech.sh`, results are saved in `zerospeech_data`
+2. Run
+
+```
+ZEROSPEECH2020_DATASET=/mnt/e/datasets/zerospeech2020/2020 \
+  zerospeech2020-evaluate 2019 -j10 zerospeech2020_datasets/submission
+```

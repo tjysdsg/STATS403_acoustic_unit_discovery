@@ -1,6 +1,3 @@
-tmp/
-exp/
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -115,11 +112,12 @@ checkpoints/
 
 # Datasets and Preprocessed data
 datasets/
-data/
 *.npy
 
 # Submission
+submission/
 *.wav
+submission.zip
 
 # Hydra outputs
 outputs/

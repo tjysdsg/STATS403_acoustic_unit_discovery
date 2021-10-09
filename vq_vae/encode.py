@@ -11,7 +11,7 @@ def get_dataloader(cfg):
     from torch.utils.data import DataLoader
     from dataset import SpeechDataset
 
-    root_path = Path(utils.to_absolute_path("datasets"))
+    root_path = Path(utils.to_absolute_path(cfg.in_dir))
     dataset = SpeechDataset(
         root=root_path,
         split_name=cfg.data_split,
