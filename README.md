@@ -25,3 +25,30 @@
 ZEROSPEECH2020_DATASET=/mnt/e/datasets/zerospeech2020/2020 \
   zerospeech2020-evaluate 2019 -j10 zerospeech2020_datasets/submission
 ```
+
+### Results
+
+#### L1+L2 data
+
+```json5
+{
+  "2019": {
+    "english": {
+      "scores": {
+        "abx": 39.86074224642665,
+        "bitrate": 387.90274352928196
+      },
+      "details_bitrate": {
+        "test": 387.90274352928196
+      },
+      "details_abx": {
+        "test": {
+          "cosine": 39.86074224642665,
+          "KL": 50.0,
+          "levenshtein": 42.31439953566402
+        }
+      }
+    }
+  }
+}
+```
