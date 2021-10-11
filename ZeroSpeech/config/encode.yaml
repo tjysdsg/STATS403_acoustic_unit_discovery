@@ -4,4 +4,4 @@ defaults:
   - model: default
 
 checkpoint: exp/zerospeech_vae/model.pt
-out_dir: zerospeech2020_datasets/encode/2019/english/test
+out_dir: zerospeech2020_datasets/submission/2019/english/test
