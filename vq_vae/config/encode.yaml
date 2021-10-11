@@ -4,6 +4,6 @@ defaults:
   - training: default
 
 in_dir: datasets
-data_split: train
+data_split: l2arctic_test
 out_dir: exp/zerospeech_vae/encode
 checkpoint: exp/zerospeech_vae/model.pt
