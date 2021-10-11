@@ -28,7 +28,7 @@ ZEROSPEECH2020_DATASET=/mnt/e/datasets/zerospeech2020/2020 \
 
 ### Results
 
-#### L1+L2 data
+#### L1 only
 
 ```json5
 {
@@ -46,6 +46,31 @@ ZEROSPEECH2020_DATASET=/mnt/e/datasets/zerospeech2020/2020 \
           "cosine": 39.86074224642665,
           "KL": 50.0,
           "levenshtein": 42.31439953566402
+        }
+      }
+    }
+  }
+}
+```
+
+#### L1+L2
+
+```json5
+{
+  "2019": {
+    "english": {
+      "scores": {
+        "abx": 40.45447005042622,
+        "bitrate": 404.3762622526002
+      },
+      "details_bitrate": {
+        "test": 404.3762622526002
+      },
+      "details_abx": {
+        "test": {
+          "cosine": 40.45447005042622,
+          "KL": 50.0,
+          "levenshtein": 42.71491717354263
         }
       }
     }
