@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
+import numpy as np
 
 
 def get_gru_cell(gru):
@@ -171,6 +172,42 @@ class Decoder(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
+
+    def generate(self, z, speaker):
+        from preprocess import mulaw_decode
+
+        output = []
+        cell = get_gru_cell(self.rnn2)
+
+        z = F.interpolate(z.transpose(1, 2), scale_factor=2)
+        z = z.transpose(1, 2)
+
+        speaker = self.speaker_embedding(speaker)
+        speaker = speaker.unsqueeze(1).expand(-1, z.size(1), -1)
+
+        z = torch.cat((z, speaker), dim=-1)
+        z, _ = self.rnn1(z)
+
+        z = F.interpolate(z.transpose(1, 2), scale_factor=self.hop_length)
+        z = z.transpose(1, 2)
+
+        batch_size, sample_size, _ = z.size()
+
+        h = torch.zeros(batch_size, self.rnn_channels, device=z.device)
+        x = torch.zeros(batch_size, device=z.device).fill_(self.quantization_channels // 2).long()
+
+        for m in torch.unbind(z, dim=1):
+            x = self.mu_embedding(x)
+            h = cell(torch.cat((x, m), dim=1), h)
+            x = F.relu(self.fc1(h))
+            logits = self.fc2(x)
+            dist = Categorical(logits=logits)
+            x = dist.sample()
+            output.append(2 * x.float().item() / (self.quantization_channels - 1.) - 1.)
+
+        output = np.asarray(output, dtype=np.float64)
+        output = mulaw_decode(output, self.quantization_channels)
+        return output
 
 
 class VqVae(nn.Module):
